@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "async_activity_monitor"
+version = "0.1.0"
+description = ""
+authors = ["Venky Iyer <indigoviolet@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+async_timeout = "^3.0.1"
+colorama = "^0.4.3"
+janus = "^0.5.0"
+pynput = "^1.6.8"
+attr = "^0.3.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0a5"]
+build-backend = "poetry.core.masonry.api"
