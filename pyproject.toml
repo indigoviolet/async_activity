@@ -7,10 +7,10 @@ authors = ["Venky Iyer <indigoviolet@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 async_timeout = "^3.0.1"
-colorama = "^0.4.3"
 janus = "^0.5.0"
 pynput = "^1.6.8"
-attr = "^0.3.1"
+rich = "^5.2.0"
+attrs = {version = "^19.3.0", allow-prereleases = true}
 
 [tool.poetry.dev-dependencies]
 

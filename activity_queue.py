@@ -1,21 +1,32 @@
 import asyncio
 from datetime import datetime
-from typing import List, NoReturn, Optional, Tuple
+from typing import List, Literal, NoReturn, Optional, Tuple
 
 import attr
 from async_timeout import timeout
-from colorama import Fore
+from rich.console import Console
+
+console = Console(markup=True, log_time=True, log_path=False)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class ActivityEvent:
+    time: float
+    type: Literal["activity", "inactivity"]
+    latest_event_time: float
+    elapsed_since_latest_event: float
+
 
 @attr.s
 class ActivityMonitor:
     events_queue = attr.ib(kw_only=True)
     inactivity_window: float = attr.ib(kw_only=True)
-    latest_event_time = attr.ib(init=False)
+    latest_event_time: float = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.latest_event_time = self._timenow()
 
-    async def get(self) -> Tuple:
+    async def get(self) -> ActivityEvent:
         new_latest_event_time = await self._get_latest_event_time()
         if new_latest_event_time is not None:
             self.latest_event_time = new_latest_event_time
@@ -23,9 +34,16 @@ class ActivityMonitor:
         timenow = self._timenow()
         elapsed_since_latest_event = timenow - self.latest_event_time
         if elapsed_since_latest_event >= self.inactivity_window:
-            result = (timenow, "inactivity", self.latest_event_time, elapsed_since_latest_event)
+            result = ActivityEvent(
+                timenow,
+                "inactivity",
+                self.latest_event_time,
+                elapsed_since_latest_event,
+            )
         else:
-            result = (timenow, "activity", self.latest_event_time, elapsed_since_latest_event)
+            result = ActivityEvent(
+                timenow, "activity", self.latest_event_time, elapsed_since_latest_event,
+            )
         return result
 
     async def _get_latest_event_time(self) -> Optional[float]:
@@ -36,15 +54,16 @@ class ActivityMonitor:
         try:
             while True:
                 async with timeout(self.inactivity_window):
-                    latest_ts, *_ = await self.events_queue.get()
+                    evt = await self.events_queue.get()
                     if self.events_queue.empty():
-                        return latest_ts
+                        return evt.time
         except asyncio.TimeoutError:
             return None
 
     @staticmethod
     def _timenow() -> float:
         return datetime.now().timestamp()
+
 
 @attr.s
 class ActivityQueue:
@@ -60,13 +79,17 @@ class ActivityQueue:
         while True:
             latest_event = await self.am.get()
             self.queue.put(latest_event)
-            await asyncio.sleep(max(self.inactivity_window - latest_event[-1], self.min_sleep_time))
-
+            await asyncio.sleep(
+                max(
+                    self.inactivity_window - latest_event.elapsed_since_latest_event,
+                    self.min_sleep_time,
+                )
+            )
 
 
 def async_q_tee(inq: asyncio.Queue, n=2) -> List[asyncio.Queue]:
-    """
-    Clones inq to n queues so that the items can be consumed multiple times independently
+    """Clones inq to n queues so that the items can be consumed multiple
+    times independently
 
     this is probably nicer as a class so we don't have to do
     create_task() and instead can await on something
@@ -86,13 +109,13 @@ def async_q_tee(inq: asyncio.Queue, n=2) -> List[asyncio.Queue]:
 
 async def log_inactivity(q) -> NoReturn:
     while True:
-        evt = await q.get()
-        if evt[1] == "inactivity":
-            print(Fore.MAGENTA + f"{evt=}")
+        evt: ActivityEvent = await q.get()
+        if evt.type == "inactivity":
+            console.log(f"[red]{evt=}[/red]")
 
 
 async def log_activity(q) -> NoReturn:
     while True:
-        evt = await q.get()
-        if evt[1] == "activity":
-            print(Fore.CYAN + f"{evt=}")
+        evt: ActivityEvent = await q.get()
+        if evt.type == "activity":
+            console.log(f"[green]{evt=}[/green]")

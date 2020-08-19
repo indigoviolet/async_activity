@@ -1,28 +1,45 @@
 from __future__ import annotations
+
 import asyncio
+from datetime import datetime
+from typing import Callable
 
 import attr
 import janus
-from pynput import keyboard, mouse
-from datetime import datetime
-from typing import Callable
+from pynput import keyboard, mouse  # type: ignore
 
 
 @attr.s
 class AioPynput:
+
+    """
+    stop(): We used to have it, but it sometimes hangs. it's unclear if it
+    is necessary to stop the listener threads since they are daemon
+    threads and will die on program exit.
+
+    Don't think this is actually doing anything: (based on
+    https://www.roguelynn.com/words/asyncio-sync-and-threaded/)
+
+    self._keyboard_listener._tstate_lock.release()
+    self._mouse_listener._tstate_lock.release()
+
+    self._keyboard_listener.stop()
+    self._mouse_listener.stop()
+    """
+
     _queue: janus.Queue = attr.ib(init=False)
     _mouse_listener: mouse.Listener = attr.ib(init=False)
     _keyboard_listener: keyboard.Listener = attr.ib(init=False)
 
     def __attrs_post_init__(self) -> None:
-        self._queue = janus.Queue(loop=asyncio.get_event_loop())
+        self._queue = janus.Queue()
         self._mouse_listener = mouse.Listener(
-            on_move=self._putter("move"),
-            on_click=self._putter("click"),
-            on_scroll=self._putter("scroll"),
+            on_move=self._make_putter("move"),
+            on_click=self._make_putter("click"),
+            on_scroll=self._make_putter("scroll"),
         )
         self._keyboard_listener = keyboard.Listener(
-            on_press=self._putter("press"), on_release=self._putter("release")
+            on_press=self._make_putter("press"), on_release=self._make_putter("release")
         )
 
     def start(self) -> AioPynput:
@@ -33,21 +50,10 @@ class AioPynput:
         self._keyboard_listener.wait()
         return self
 
-    def stop(self) -> None:
-        # this sometimes hangs. it's unclear if it is necessary to
-        # stop these, since they are daemon threads and will die on
-        # program exit.
-        #
-        # Don't think this is actually doing anything: (based on https://www.roguelynn.com/words/asyncio-sync-and-threaded/)
-        # self._keyboard_listener._tstate_lock.release()
-        # self._mouse_listener._tstate_lock.release()
-        #
-        # self._keyboard_listener.stop()
-        # self._mouse_listener.stop()
-        pass
-
-    def _putter(self, evt: str) -> Callable[..., None]:
-        return lambda *args: self.sync_q.put_nowait((datetime.now().timestamp(), evt, args))
+    def _make_putter(self, evt: str) -> Callable[..., None]:
+        return lambda *args: self.sync_q.put_nowait(
+            (datetime.now().timestamp(), evt, args)
+        )
 
     @property
     def sync_q(self):
