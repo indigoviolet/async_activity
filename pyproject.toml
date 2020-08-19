@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "async_activity_monitor"
+name = "async_activity"
 version = "0.1.0"
-description = ""
+description = "Async wrapper around Pynput + a queue/monitor to detect transitions from activity > inactivity and vice versa"
 authors = ["Venky Iyer <indigoviolet@gmail.com>"]
 
 [tool.poetry.dependencies]
