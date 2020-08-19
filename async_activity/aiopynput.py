@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import Callable
+from typing import Any, Callable, Literal
 
 import attr
 import janus
 from pynput import keyboard, mouse  # type: ignore
+
+EventType = Literal["move", "click", "scroll", "press", "release"]
+
+
+@attr.s(auto_attribs=True)
+class ActivityEvent:
+    time: float
+    type: EventType
+    args: Any
 
 
 @attr.s
@@ -27,12 +36,11 @@ class AioPynput:
     self._mouse_listener.stop()
     """
 
-    _queue: janus.Queue = attr.ib(init=False)
+    _queue: janus.Queue = attr.ib(init=False, factory=janus.Queue)
     _mouse_listener: mouse.Listener = attr.ib(init=False)
     _keyboard_listener: keyboard.Listener = attr.ib(init=False)
 
     def __attrs_post_init__(self) -> None:
-        self._queue = janus.Queue()
         self._mouse_listener = mouse.Listener(
             on_move=self._make_putter("move"),
             on_click=self._make_putter("click"),
@@ -50,9 +58,9 @@ class AioPynput:
         self._keyboard_listener.wait()
         return self
 
-    def _make_putter(self, evt: str) -> Callable[..., None]:
+    def _make_putter(self, evt: EventType) -> Callable[..., None]:
         return lambda *args: self.sync_q.put_nowait(
-            (datetime.now().timestamp(), evt, args)
+            ActivityEvent(datetime.now().timestamp(), evt, args)
         )
 
     @property

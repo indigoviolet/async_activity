@@ -10,7 +10,7 @@ console = Console(markup=True, log_time=True, log_path=False)
 
 
 @attr.s(auto_attribs=True, frozen=True)
-class ActivityEvent:
+class ActivityChangeEvent:
     time: float
     type: Literal["activity", "inactivity"]
     latest_event_time: float
@@ -26,7 +26,7 @@ class ActivityMonitor:
     def __attrs_post_init__(self):
         self.latest_event_time = self._timenow()
 
-    async def get(self) -> ActivityEvent:
+    async def get(self) -> ActivityChangeEvent:
         new_latest_event_time = await self._get_latest_event_time()
         if new_latest_event_time is not None:
             self.latest_event_time = new_latest_event_time
@@ -34,14 +34,14 @@ class ActivityMonitor:
         timenow = self._timenow()
         elapsed_since_latest_event = timenow - self.latest_event_time
         if elapsed_since_latest_event >= self.inactivity_window:
-            result = ActivityEvent(
+            result = ActivityChangeEvent(
                 timenow,
                 "inactivity",
                 self.latest_event_time,
                 elapsed_since_latest_event,
             )
         else:
-            result = ActivityEvent(
+            result = ActivityChangeEvent(
                 timenow, "activity", self.latest_event_time, elapsed_since_latest_event,
             )
         return result
@@ -73,12 +73,14 @@ class ActivityQueue:
     min_sleep_time: int = attr.ib(kw_only=True, default=30)
 
     def __attrs_post_init__(self):
-        self.am = ActivityMonitor(events_queue, inactivity_window)
+        self.am = ActivityMonitor(
+            events_queue=self.events_queue, inactivity_window=self.inactivity_window
+        )
 
     async def run(self) -> NoReturn:
         while True:
             latest_event = await self.am.get()
-            self.queue.put(latest_event)
+            await self.queue.put(latest_event)
             await asyncio.sleep(
                 max(
                     self.inactivity_window - latest_event.elapsed_since_latest_event,
@@ -109,13 +111,13 @@ def async_q_tee(inq: asyncio.Queue, n=2) -> List[asyncio.Queue]:
 
 async def log_inactivity(q) -> NoReturn:
     while True:
-        evt: ActivityEvent = await q.get()
+        evt: ActivityChangeEvent = await q.get()
         if evt.type == "inactivity":
             console.log(f"[red]{evt=}[/red]")
 
 
 async def log_activity(q) -> NoReturn:
     while True:
-        evt: ActivityEvent = await q.get()
+        evt: ActivityChangeEvent = await q.get()
         if evt.type == "activity":
             console.log(f"[green]{evt=}[/green]")
