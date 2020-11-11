@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import List, Literal, NoReturn, Optional, Tuple
+from typing import List, Literal, NoReturn, Optional
 
 import attr
 from async_timeout import timeout
