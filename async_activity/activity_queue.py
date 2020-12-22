@@ -12,7 +12,7 @@ console = Console(markup=True, log_time=True, log_path=False)
 
 
 @attr.s(auto_attribs=True, frozen=True)
-class ActivityChangeEvent:
+class ActivityRollupEvent:
     time: float
     type: Literal["activity", "inactivity"]
     latest_event_time: float
@@ -28,7 +28,7 @@ class ActivityMonitor:
     def __attrs_post_init__(self):
         self.latest_event_time = self._timenow()
 
-    async def get(self) -> ActivityChangeEvent:
+    async def get(self) -> ActivityRollupEvent:
         new_latest_event_time = await self._get_latest_event_time()
         if new_latest_event_time is not None:
             self.latest_event_time = new_latest_event_time
@@ -36,14 +36,14 @@ class ActivityMonitor:
         timenow = self._timenow()
         elapsed_since_latest_event = timenow - self.latest_event_time
         if elapsed_since_latest_event >= self.inactivity_window:
-            result = ActivityChangeEvent(
+            result = ActivityRollupEvent(
                 timenow,
                 "inactivity",
                 self.latest_event_time,
                 elapsed_since_latest_event,
             )
         else:
-            result = ActivityChangeEvent(
+            result = ActivityRollupEvent(
                 timenow,
                 "activity",
                 self.latest_event_time,
@@ -116,13 +116,13 @@ def async_q_tee(inq: asyncio.Queue, n=2) -> List[asyncio.Queue]:
 
 async def log_inactivity(q) -> NoReturn:
     while True:
-        evt: ActivityChangeEvent = await q.get()
+        evt: ActivityRollupEvent = await q.get()
         if evt.type == "inactivity":
             console.log(f"[red]{evt=}[/red]")
 
 
 async def log_activity(q) -> NoReturn:
     while True:
-        evt: ActivityChangeEvent = await q.get()
+        evt: ActivityRollupEvent = await q.get()
         if evt.type == "activity":
             console.log(f"[green]{evt=}[/green]")
