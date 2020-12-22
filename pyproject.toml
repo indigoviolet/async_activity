@@ -14,6 +14,7 @@ attrs = ">=19.3.0"
 python-xlib = ">=0.27"
 
 [tool.poetry.dev-dependencies]
+mypy = "^0.790"
 
 [build-system]
 requires = ["poetry-core>=1.0.0a5"]

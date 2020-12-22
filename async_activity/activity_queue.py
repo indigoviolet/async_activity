@@ -6,6 +6,8 @@ import attr
 from async_timeout import timeout
 from rich.console import Console
 
+from .aiopynput import AsyncActivityEventQueue
+
 console = Console(markup=True, log_time=True, log_path=False)
 
 
@@ -19,7 +21,7 @@ class ActivityChangeEvent:
 
 @attr.s
 class ActivityMonitor:
-    events_queue = attr.ib(kw_only=True)
+    events_queue: AsyncActivityEventQueue = attr.ib(kw_only=True)
     inactivity_window: float = attr.ib(kw_only=True)
     latest_event_time: float = attr.ib(init=False)
 
@@ -42,7 +44,10 @@ class ActivityMonitor:
             )
         else:
             result = ActivityChangeEvent(
-                timenow, "activity", self.latest_event_time, elapsed_since_latest_event,
+                timenow,
+                "activity",
+                self.latest_event_time,
+                elapsed_since_latest_event,
             )
         return result
 
@@ -68,7 +73,7 @@ class ActivityMonitor:
 @attr.s
 class ActivityQueue:
     queue: asyncio.Queue = attr.ib(factory=asyncio.Queue, init=False)
-    events_queue = attr.ib(kw_only=True)
+    events_queue: AsyncActivityEventQueue = attr.ib(kw_only=True)
     inactivity_window: float = attr.ib(kw_only=True)
     min_sleep_time: int = attr.ib(kw_only=True, default=30)
 

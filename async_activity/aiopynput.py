@@ -1,14 +1,21 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Protocol
 
 import attr
 import janus
-from pynput import keyboard, mouse  # type: ignore
+from pynput import keyboard, mouse
 
 EventType = Literal["move", "click", "scroll", "press", "release"]
+
+
+class AsyncActivityEventQueue(Protocol):
+    async def get(self) -> ActivityEvent:
+        ...
+
+    def empty(self) -> bool:
+        ...
 
 
 @attr.s(auto_attribs=True)
@@ -68,5 +75,5 @@ class AioPynput:
         return self._queue.sync_q
 
     @property
-    def async_q(self):
+    def async_q(self) -> AsyncActivityEventQueue:
         return self._queue.async_q
